@@ -1,0 +1,84 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK (Release)
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Rename APK
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MilkTrayScan-APK
+          path: build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "Milk Tray Scan v1.0.0 - AI Packet Counter"
+          body: |
+            ## 🥛 Milk Tray Scan v1.0.0
+            
+            **AI-Powered Real-Time Milk Packet Counter for Android**
+            
+            ### ✨ Features
+            - 📸 Real-time camera-based object detection
+            - 🤖 On-device AI (Google ML Kit) — no internet required
+            - 📊 Live bounding box overlays with packet count
+            - 💾 Save counting sessions with photos
+            - 📋 History tracking with total statistics
+            - 🔄 Front/rear camera switching
+            - 🌙 Dark mode support
+            
+            ### 📲 Installation
+            1. Download `MilkTrayScan-v1.0.0.apk` below
+            2. Enable "Install from unknown sources" on your Android device
+            3. Install and open the app
+            4. Grant camera permission when prompted
+            5. Point camera at milk packets and start counting!
+            
+            ### 📱 Requirements
+            - Android 5.0 (API 21) or higher
+            - Camera permission
+            
+            ---
+            *Built with Flutter & Google ML Kit Object Detection*
+          files: build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
