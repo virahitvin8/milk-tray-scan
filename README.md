@@ -44,7 +44,7 @@ No internet required. No server costs. Completely free and offline.
 
 ### Download APK (Recommended)
 1. Go to [**Releases**](https://github.com/virahitvin8/milk-tray-scan/releases/latest)
-2. Download `QuanScan-v1.0.0.apk`
+2. Download `QuanScan-v1.0.1.apk`
 3. Enable **"Install from unknown sources"** in Android Settings
 4. Install and open the app
 5. Grant **camera permission** when prompted

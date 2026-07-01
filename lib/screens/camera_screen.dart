@@ -9,6 +9,39 @@ import 'package:path_provider/path_provider.dart';
 import '../models/count_record.dart';
 import '../services/storage_service.dart';
 
+/// Calculates Intersection over Union between two rects.
+double _calculateIoU(Rect a, Rect b) {
+  final xLeft = max(a.left, b.left);
+  final yTop = max(a.top, b.top);
+  final xRight = min(a.right, b.right);
+  final yBottom = min(a.bottom, b.bottom);
+
+  if (xRight < xLeft || yBottom < yTop) return 0.0;
+
+  final intersectionArea = (xRight - xLeft) * (yBottom - yTop);
+  final areaA = a.width * a.height;
+  final areaB = b.width * b.height;
+  final unionArea = areaA + areaB - intersectionArea;
+
+  return unionArea > 0 ? intersectionArea / unionArea : 0.0;
+}
+
+/// Returns a set of indices into [objects] that are overlapping with others
+/// above the given [threshold].
+Set<int> _findOverlappingIndices(List<Rect> rects, {double threshold = 0.15}) {
+  final overlapping = <int>{};
+  for (int i = 0; i < rects.length; i++) {
+    for (int j = i + 1; j < rects.length; j++) {
+      final iou = _calculateIoU(rects[i], rects[j]);
+      if (iou > threshold) {
+        overlapping.add(i);
+        overlapping.add(j);
+      }
+    }
+  }
+  return overlapping;
+}
+
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
 
@@ -21,13 +54,17 @@ class _CameraScreenState extends State<CameraScreen>
   CameraController? _cameraController;
   ObjectDetector? _objectDetector;
   List<DetectedObject> _detectedObjects = [];
+  Set<int> _overlappingIndices = {};
   int _objectCount = 0;
+  int _standaloneCount = 0;
+  int _overlappedCount = 0;
   bool _isDetecting = false;
   bool _cameraReady = false;
   String? _errorMessage;
   Size? _imageSize;
   int _cameraSensorOrientation = 90;
   bool _showResult = false;
+  int _currentCameraIndex = 0;
 
   @override
   void initState() {
@@ -64,7 +101,7 @@ class _CameraScreenState extends State<CameraScreen>
     _objectDetector = ObjectDetector(
       options: ObjectDetectorOptions(
         mode: DetectionMode.stream,
-        classifyObjects: true,
+        classifyObjects: false,
         multipleObjects: true,
       ),
     );
@@ -78,7 +115,6 @@ class _CameraScreenState extends State<CameraScreen>
         return;
       }
 
-      // Prefer back camera
       final camera = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
@@ -133,21 +169,35 @@ class _CameraScreenState extends State<CameraScreen>
 
       if (!mounted) return;
 
-      // Filter: only keep reasonably sized objects (likely packets)
       final imageArea = image.width * image.height;
-      final filtered = objects.where((obj) {
+      final filtered = <DetectedObject>[];
+      final rects = <Rect>[];
+
+      for (final obj in objects) {
         final box = obj.boundingBox;
         final area = box.width * box.height;
-        // Filter out very small detections (< 1.5% of image) as noise
-        return area > imageArea * 0.015;
-      }).toList();
+        // Filter out very small detections (< 1.5% of image)
+        if (area > imageArea * 0.015) {
+          filtered.add(obj);
+          rects.add(box);
+        }
+      }
+
+      // Find overlapping boxes using IoU
+      final overlapping = _findOverlappingIndices(rects, threshold: 0.15);
+
+      final standaloneCount = filtered.length - overlapping.length;
+      final overlappedCount = overlapping.length;
 
       setState(() {
         _detectedObjects = filtered;
+        _overlappingIndices = overlapping;
         _objectCount = filtered.length;
+        _standaloneCount = standaloneCount;
+        _overlappedCount = overlappedCount;
         _imageSize = Size(image.width.toDouble(), image.height.toDouble());
       });
-    } catch (e) {
+    } catch (_) {
       // Silently handle detection errors during stream
     }
   }
@@ -158,7 +208,6 @@ class _CameraScreenState extends State<CameraScreen>
       orElse: () => InputImageRotation.rotation0deg,
     );
 
-    // NV21 format: concatenate all planes
     final bytesBuilder = BytesBuilder();
     for (final Plane plane in image.planes) {
       bytesBuilder.add(plane.bytes);
@@ -179,31 +228,27 @@ class _CameraScreenState extends State<CameraScreen>
     if (_cameraController == null || !_cameraReady) return;
 
     try {
-      // Take a photo
       final XFile photo = await _cameraController!.takePicture();
       final appDir = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final savedPath = '${appDir.path}/count_$timestamp.jpg';
       await File(photo.path).copy(savedPath);
 
-      // Create record
       final record = CountRecord(
         id: timestamp.toString(),
         count: _objectCount,
+        standaloneCount: _standaloneCount,
+        overlappedCount: _overlappedCount,
         timestamp: DateTime.now(),
         imagePath: savedPath,
       );
 
-      // Save to storage
       final storage = StorageService();
       await storage.saveRecord(record);
 
       if (mounted) {
-        setState(() {
-          _showResult = true;
-        });
+        setState(() => _showResult = true);
 
-        // Haptic feedback
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Saved: $_objectCount packets counted'),
@@ -213,7 +258,6 @@ class _CameraScreenState extends State<CameraScreen>
           ),
         );
 
-        // Auto-dismiss result after 2.5 seconds
         Future.delayed(const Duration(milliseconds: 2500), () {
           if (mounted) setState(() => _showResult = false);
         });
@@ -222,7 +266,8 @@ class _CameraScreenState extends State<CameraScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e.toString()}'),
+            content: Text(
+                'Error: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e.toString()}'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.red.shade700,
           ),
@@ -231,35 +276,6 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: true,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          title: const Text('Quan Scan'),
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.history_rounded),
-              onPressed: () => Navigator.pushNamed(context, '/history'),
-              tooltip: 'History',
-            ),
-            IconButton(
-              icon: const Icon(Icons.flip_camera_android_rounded),
-              onPressed: _switchCamera,
-              tooltip: 'Switch camera',
-            ),
-          ],
-        ),
-        body: _buildBody(),
-      ),
-    );
-  }
-
-  int _currentCameraIndex = 0;
   Future<void> _switchCamera() async {
     try {
       final cameras = await availableCameras();
@@ -274,7 +290,10 @@ class _CameraScreenState extends State<CameraScreen>
 
       setState(() {
         _detectedObjects = [];
+        _overlappingIndices = {};
         _objectCount = 0;
+        _standaloneCount = 0;
+        _overlappedCount = 0;
         _imageSize = null;
       });
 
@@ -297,6 +316,34 @@ class _CameraScreenState extends State<CameraScreen>
     } catch (_) {}
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: const Text('Milk Tray Scan'),
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.history_rounded),
+              onPressed: () => Navigator.pushNamed(context, '/history'),
+              tooltip: 'History',
+            ),
+            IconButton(
+              icon: const Icon(Icons.flip_camera_android_rounded),
+              onPressed: _switchCamera,
+              tooltip: 'Switch camera',
+            ),
+          ],
+        ),
+        body: _buildBody(),
+      ),
+    );
+  }
+
   Widget _buildBody() {
     if (_errorMessage != null) {
       final colorScheme = Theme.of(context).colorScheme;
@@ -311,7 +358,7 @@ class _CameraScreenState extends State<CameraScreen>
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
@@ -329,30 +376,30 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     if (!_cameraReady || _cameraController == null) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(
+          child: CircularProgressIndicator(color: Colors.white));
     }
 
-    // Use a LayoutBuilder to track the preview size for the overlay
     return LayoutBuilder(
       builder: (context, constraints) {
         final previewSize = Size(constraints.maxWidth, constraints.maxHeight);
 
         return Stack(
           children: [
-            // Camera preview fills the available space
             SizedBox(
               width: constraints.maxWidth,
               height: constraints.maxHeight,
               child: CameraPreview(_cameraController!),
             ),
 
-            // Detection overlay
+            // Detection overlay with overlap coloring
             if (_imageSize != null && _detectedObjects.isNotEmpty)
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
                     painter: DetectionPainter(
                       objects: _detectedObjects,
+                      overlappingIndices: _overlappingIndices,
                       imageSize: _imageSize!,
                       previewSize: previewSize,
                       rotation: _cameraSensorOrientation,
@@ -401,51 +448,104 @@ class _CameraScreenState extends State<CameraScreen>
           width: 1,
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.inventory_2_rounded,
-            color: _objectCount > 0 ? Colors.greenAccent : Colors.white54,
-            size: 28,
-          ),
-          const SizedBox(width: 12),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Text(
-              '$_objectCount',
-              key: ValueKey(_objectCount),
-              style: TextStyle(
-                fontSize: 42,
-                fontWeight: FontWeight.bold,
-                color: _objectCount > 0 ? Colors.greenAccent : Colors.white,
+          // Main count row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.inventory_2_rounded,
+                color: _objectCount > 0 ? Colors.greenAccent : Colors.white54,
+                size: 28,
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _objectCount == 1 ? 'Packet' : 'Packets',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(width: 16),
-          if (_objectCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.greenAccent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'LIVE',
-                style: TextStyle(
-                  color: Colors.greenAccent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
+              const SizedBox(width: 12),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  '$_objectCount',
+                  key: ValueKey('total_$_objectCount'),
+                  style: TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: _objectCount > 0 ? Colors.greenAccent : Colors.white,
+                  ),
                 ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _objectCount == 1 ? 'Packet' : 'Packets',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(width: 16),
+              if (_objectCount > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.greenAccent.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Overlap breakdown
+          if (_objectCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Standalone indicator
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: Colors.greenAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$_standaloneCount standalone',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.greenAccent.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  if (_overlappedCount > 0) ...[
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: Colors.orangeAccent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$_overlappedCount stacked',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orangeAccent.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
         ],
@@ -471,7 +571,8 @@ class _CameraScreenState extends State<CameraScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check_circle, color: Colors.greenAccent, size: 64),
+              const Icon(Icons.check_circle,
+                  color: Colors.greenAccent, size: 64),
               const SizedBox(height: 16),
               const Text(
                 'Count Saved!',
@@ -489,6 +590,17 @@ class _CameraScreenState extends State<CameraScreen>
                   color: Colors.white.withValues(alpha: 0.8),
                 ),
               ),
+              if (_overlappedCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '$_standaloneCount standalone · $_overlappedCount stacked',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.orangeAccent.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 4),
               Text(
                 DateFormat('h:mm a').format(DateTime.now()),
@@ -539,83 +651,52 @@ class _CameraScreenState extends State<CameraScreen>
 
 class DetectionPainter extends CustomPainter {
   final List<DetectedObject> objects;
+  final Set<int> overlappingIndices;
   final Size imageSize;
   final Size previewSize;
   final int rotation;
 
   DetectionPainter({
     required this.objects,
+    required this.overlappingIndices,
     required this.imageSize,
     required this.previewSize,
     required this.rotation,
   });
 
+  Color get _standaloneColor => Colors.greenAccent;
+  Color get _overlappedColor => Colors.orangeAccent;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (objects.isEmpty || imageSize == Size.zero) return;
 
-    final overlappingIndices = <int>{};
     for (int i = 0; i < objects.length; i++) {
-      for (int j = i + 1; j < objects.length; j++) {
-        final rect1 = objects[i].boundingBox;
-        final rect2 = objects[j].boundingBox;
-        final intersection = rect1.intersect(rect2);
-        if (intersection.width > 0 && intersection.height > 0) {
-          final intersectArea = intersection.width * intersection.height;
-          final area1 = rect1.width * rect1.height;
-          final area2 = rect2.width * rect2.height;
-          if (intersectArea > area1 * 0.2 || intersectArea > area2 * 0.2) {
-            overlappingIndices.add(i);
-            overlappingIndices.add(j);
-          }
-        }
-      }
-    }
+      final isOverlapping = overlappingIndices.contains(i);
+      final boxColor =
+          isOverlapping ? _overlappedColor : _standaloneColor;
 
-    for (int i = 0; i < objects.length; i++) {
-      final object = objects[i];
-      final isOverlaid = overlappingIndices.contains(i);
-      
-      final baseColor = isOverlaid ? Colors.purpleAccent : Colors.greenAccent;
-      
+      final Rect rect = objects[i].boundingBox;
+      final Rect transformedRect = _transformRect(rect);
+
+      // Fill
+      final fillPaint = Paint()
+        ..color = boxColor.withValues(alpha: 0.12)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(transformedRect, fillPaint);
+
+      // Bounding box stroke
       final boxPaint = Paint()
-        ..color = baseColor
+        ..color = boxColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round;
-
-      final fillPaint = Paint()
-        ..color = baseColor.withValues(alpha: 0.15)
-        ..style = PaintingStyle.fill;
-
-      final labelBgPaint = Paint()
-        ..color = baseColor.withValues(alpha: 0.85)
-        ..style = PaintingStyle.fill;
-
-      final Rect rect = object.boundingBox;
-      final Rect transformedRect = _transformRect(rect);
-
-      // Draw filled background
-      canvas.drawRect(transformedRect, fillPaint);
-
-      // Draw bounding box
       canvas.drawRect(transformedRect, boxPaint);
-      
-      // Draw a small square upon the milk packet (center marker)
-      final centerPaint = Paint()
-        ..color = baseColor
-        ..style = PaintingStyle.fill;
-      final centerRect = Rect.fromCenter(
-        center: transformedRect.center, 
-        width: 16, 
-        height: 16
-      );
-      canvas.drawRect(centerRect, centerPaint);
-      
-      // Draw corner markers
+
+      // Corner markers
       final cornerLen = 12.0;
       final cornerPaint = Paint()
-        ..color = baseColor
+        ..color = boxColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3.5;
 
@@ -664,39 +745,80 @@ class DetectionPainter extends CustomPainter {
         cornerPaint,
       );
 
-      // Draw label
-      final label = _getLabel(object);
-      if (label != null) {
-        final textPainter = TextPainter(
-          text: TextSpan(
-            text: isOverlaid ? '$label (Overlaid)' : label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
+      // Label: index number
+      final label = isOverlapping ? 'S${i + 1}' : '${i + 1}';
+      final labelBgPaint = Paint()
+        ..color = boxColor.withValues(alpha: 0.85)
+        ..style = PaintingStyle.fill;
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      );
+      textPainter.layout();
+
+      final labelHeight = textPainter.height + 6;
+      final labelWidth = textPainter.width + 12;
+      final labelRect = Rect.fromLTWH(
+        transformedRect.left,
+        (transformedRect.top - labelHeight).clamp(0, double.infinity),
+        labelWidth,
+        labelHeight,
+      );
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(labelRect, const Radius.circular(4)),
+        labelBgPaint,
+      );
+
+      textPainter.paint(
+        canvas,
+        Offset(labelRect.left + 6, labelRect.top + 3),
+      );
+
+      // Overlap badge on overlapped boxes
+      if (isOverlapping) {
+        final badgePaint = Paint()
+          ..color = Colors.orangeAccent.withValues(alpha: 0.9)
+          ..style = PaintingStyle.fill;
+
+        final badgeRect = Rect.fromLTWH(
+          transformedRect.right - 28,
+          transformedRect.bottom - 14,
+          28,
+          14,
+        );
+
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(badgeRect, const Radius.circular(4)),
+          badgePaint,
+        );
+
+        final badgeText = TextPainter(
+          text: const TextSpan(
+            text: '⧉',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
           ),
           textDirection: ui.TextDirection.ltr,
         );
-        textPainter.layout();
-
-        final labelHeight = textPainter.height + 6;
-        final labelWidth = textPainter.width + 12;
-        final labelRect = Rect.fromLTWH(
-          transformedRect.left,
-          (transformedRect.top - labelHeight).clamp(0, double.infinity),
-          labelWidth,
-          labelHeight,
-        );
-
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(labelRect, const Radius.circular(4)),
-          labelBgPaint,
-        );
-
-        textPainter.paint(
+        badgeText.layout();
+        badgeText.paint(
           canvas,
-          Offset(labelRect.left + 6, labelRect.top + 3),
+          Offset(
+            badgeRect.center.dx - badgeText.width / 2,
+            badgeRect.center.dy - badgeText.height / 2,
+          ),
         );
       }
     }
@@ -709,7 +831,6 @@ class DetectionPainter extends CustomPainter {
 
     switch (rotation) {
       case 90:
-        // Portrait mode: image is rotated 90° CW relative to display
         final scaleX = previewSize.width / imageSize.height;
         final scaleY = previewSize.height / imageSize.width;
         left = rect.top * scaleX;
@@ -718,7 +839,6 @@ class DetectionPainter extends CustomPainter {
         bottom = (imageSize.width - rect.left) * scaleY;
         break;
       case 270:
-        // Reverse portrait
         final scaleX = previewSize.width / imageSize.height;
         final scaleY = previewSize.height / imageSize.width;
         left = (imageSize.height - rect.bottom) * scaleX;
@@ -727,7 +847,6 @@ class DetectionPainter extends CustomPainter {
         bottom = rect.right * scaleY;
         break;
       case 180:
-        // Upside down
         final scaleX = previewSize.width / imageSize.width;
         final scaleY = previewSize.height / imageSize.height;
         left = (imageSize.width - rect.right) * scaleX;
@@ -736,7 +855,6 @@ class DetectionPainter extends CustomPainter {
         bottom = (imageSize.height - rect.top) * scaleY;
         break;
       default:
-        // 0° - landscape
         final scaleX = previewSize.width / imageSize.width;
         final scaleY = previewSize.height / imageSize.height;
         left = rect.left * scaleX;
@@ -749,20 +867,10 @@ class DetectionPainter extends CustomPainter {
     return Rect.fromLTRB(left, top, right, bottom);
   }
 
-  String? _getLabel(DetectedObject object) {
-    if (object.labels.isNotEmpty) {
-      return object.labels.first.text;
-    }
-    // Show confidence if tracking ID available
-    if (object.trackingId != null) {
-      return '#${object.trackingId}';
-    }
-    return null;
-  }
-
   @override
   bool shouldRepaint(DetectionPainter oldDelegate) {
     return oldDelegate.objects != objects ||
+        oldDelegate.overlappingIndices != overlappingIndices ||
         oldDelegate.imageSize != imageSize ||
         oldDelegate.previewSize != previewSize;
   }
