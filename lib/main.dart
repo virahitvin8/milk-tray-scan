@@ -14,7 +14,7 @@ class MilkPacketCounterApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Milk Tray Scan',
+      title: 'Quan Scan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF1565C0),

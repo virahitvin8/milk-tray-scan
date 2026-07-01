@@ -37,21 +37,21 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/QuanScan-v1.0.0.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MilkTrayScan-APK
-          path: build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
+          name: QuanScan-APK
+          path: build/app/outputs/flutter-apk/QuanScan-v1.0.0.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
-          name: "Milk Tray Scan v1.0.0 - AI Packet Counter"
+          name: "Quan Scan v1.0.0 - AI Packet Counter"
           body: |
-            ## 🥛 Milk Tray Scan v1.0.0
+            ## 🥛 Quan Scan v1.0.0
             
             **AI-Powered Real-Time Milk Packet Counter for Android**
             

@@ -1,6 +1,6 @@
-<![CDATA[<div align="center">
+<div align="center">
 
-# 🥛 Milk Tray Scan
+# 🥛 Quan Scan
 
 ### AI-Powered Real-Time Milk Packet Counter
 
@@ -44,7 +44,7 @@ No internet required. No server costs. Completely free and offline.
 
 ### Download APK (Recommended)
 1. Go to [**Releases**](https://github.com/virahitvin8/milk-tray-scan/releases/latest)
-2. Download `MilkTrayScan-v1.0.0.apk`
+2. Download `QuanScan-v1.0.0.apk`
 3. Enable **"Install from unknown sources"** in Android Settings
 4. Install and open the app
 5. Grant **camera permission** when prompted
@@ -119,4 +119,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Powered by Flutter & Google ML Kit*
 
 </div>
-]]>
+

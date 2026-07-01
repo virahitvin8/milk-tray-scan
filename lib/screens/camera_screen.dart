@@ -238,7 +238,7 @@ class _CameraScreenState extends State<CameraScreen>
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
-          title: const Text('Milk Tray Scan'),
+          title: const Text('Quan Scan'),
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
           actions: [
