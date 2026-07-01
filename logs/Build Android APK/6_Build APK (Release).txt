@@ -1,55 +1,42 @@
-﻿2026-07-01T08:55:19.6172072Z ##[group]Run flutter build apk --release --no-tree-shake-icons
-2026-07-01T08:55:19.6172849Z [36;1mflutter build apk --release --no-tree-shake-icons[0m
-2026-07-01T08:55:19.6218409Z shell: /usr/bin/bash -e {0}
-2026-07-01T08:55:19.6218788Z env:
-2026-07-01T08:55:19.6219258Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
-2026-07-01T08:55:19.6220065Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
-2026-07-01T08:55:19.6220834Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.27.4-x64/flutter
-2026-07-01T08:55:19.6221441Z   PUB_CACHE: /home/runner/.pub-cache
-2026-07-01T08:55:19.6221840Z ##[endgroup]
-2026-07-01T08:55:20.1239514Z 
-2026-07-01T08:58:36.6736137Z Running Gradle task 'assembleRelease'...                        
-2026-07-01T08:58:36.6783118Z Note: /home/runner/.pub-cache/hosted/pub.dev/google_mlkit_object_detection-0.13.1/android/src/main/java/com/google_mlkit_object_detection/ObjectDetector.java uses unchecked or unsafe operations.
-2026-07-01T08:58:36.6785057Z Note: Recompile with -Xlint:unchecked for details.
-2026-07-01T08:58:52.3113186Z 
-2026-07-01T08:58:52.3164366Z FAILURE: Build failed with an exception.
-2026-07-01T08:58:52.3199170Z 
-2026-07-01T08:58:52.3205318Z * What went wrong:
-2026-07-01T08:58:52.3211587Z Execution failed for task ':flutter_plugin_android_lifecycle:generateReleaseLintModel'.
-2026-07-01T08:58:52.3213087Z > Could not resolve all files for configuration ':flutter_plugin_android_lifecycle:releaseUnitTestRuntimeClasspath'.
-2026-07-01T08:58:52.3221987Z    > Failed to transform byte-buddy-1.17.5.jar (net.bytebuddy:byte-buddy:1.17.5) to match attributes {artifactType=processed-jar, org.gradle.category=library, org.gradle.libraryelements=jar, org.gradle.status=release, org.gradle.usage=java-runtime}.
-2026-07-01T08:58:52.3224892Z       > Execution failed for JetifyTransform: /home/runner/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy/1.17.5/88450f120903b7e72470462cdbd2b75a3842223c/byte-buddy-1.17.5.jar.
-2026-07-01T08:58:52.3227940Z          > Failed to transform '/home/runner/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy/1.17.5/88450f120903b7e72470462cdbd2b75a3842223c/byte-buddy-1.17.5.jar' using Jetifier. Reason: IllegalArgumentException, message: Unsupported class file major version 68. (Run with --stacktrace for more details.)
-2026-07-01T08:58:52.3230209Z            Suggestions:
-2026-07-01T08:58:52.3231674Z             - Check out existing issues at https://issuetracker.google.com/issues?q=componentid:460323&s=modified_time:desc, it's possible that this issue has already been filed there.
-2026-07-01T08:58:52.3265477Z             - If this issue has not been filed, please report it at https://issuetracker.google.com/issues/new?component=460323 (run with --stacktrace and provide a stack trace if possible).
-2026-07-01T08:58:52.3273637Z 
-2026-07-01T08:58:52.3304656Z * Try:
-2026-07-01T08:58:52.3305402Z > Run with --stacktrace option to get the stack trace.
-2026-07-01T08:58:52.3335690Z > Run with --info or --debug option to get more log output.
-2026-07-01T08:58:52.3364724Z > Run with --scan to get full insights.
-2026-07-01T08:58:52.3394700Z > Get more help at https://help.gradle.org.
-2026-07-01T08:58:52.3397383Z 
-2026-07-01T08:58:52.3430054Z BUILD FAILED in 3m 27s
-2026-07-01T08:58:52.7515286Z Running Gradle task 'assembleRelease'...                          212.6s
-2026-07-01T08:58:52.7552999Z 
-2026-07-01T08:58:52.7557885Z ┌─ Flutter Fix ────────────────────────────────────────────────────────────────────────────────────┐
-2026-07-01T08:58:52.7559400Z │ [!] Your project's Gradle version is incompatible with the Java version that Flutter is using    │
-2026-07-01T08:58:52.7560721Z │ for Gradle.                                                                                      │
-2026-07-01T08:58:52.7561765Z │                                                                                                  │
-2026-07-01T08:58:52.7562996Z │ If you recently upgraded Android Studio, consult the migration guide at                          │
-2026-07-01T08:58:52.7565169Z │ https://flutter.dev/to/java-gradle-incompatibility.                                              │
-2026-07-01T08:58:52.7566540Z │                                                                                                  │
-2026-07-01T08:58:52.7567593Z │ Otherwise, to fix this issue, first, check the Java version used by Flutter by running `flutter  │
-2026-07-01T08:58:52.7568616Z │ doctor --verbose`.                                                                               │
-2026-07-01T08:58:52.7569469Z │                                                                                                  │
-2026-07-01T08:58:52.7570381Z │ Then, update the Gradle version specified in                                                     │
-2026-07-01T08:58:52.7571514Z │ /home/runner/work/milk-tray-scan/milk-tray-scan/android/gradle/wrapper/gradle-wrapper.properties │
-2026-07-01T08:58:52.7572698Z │ to be compatible with that Java version. See the link below for more information on compatible   │
-2026-07-01T08:58:52.7573739Z │ Java/Gradle versions:                                                                            │
-2026-07-01T08:58:52.7575781Z │ https://docs.gradle.org/current/userguide/compatibility.html#java                                │
-2026-07-01T08:58:52.7576738Z │                                                                                                  │
-2026-07-01T08:58:52.7577452Z │                                                                                                  │
-2026-07-01T08:58:52.7578045Z └──────────────────────────────────────────────────────────────────────────────────────────────────┘
-2026-07-01T08:58:52.7647790Z Gradle task assembleRelease failed with exit code 1
-2026-07-01T08:58:52.7710247Z ##[error]Process completed with exit code 1.
+﻿2026-07-01T09:31:14.1510858Z ##[group]Run flutter build apk --release --no-tree-shake-icons
+2026-07-01T09:31:14.1511499Z [36;1mflutter build apk --release --no-tree-shake-icons[0m
+2026-07-01T09:31:14.1550642Z shell: /usr/bin/bash -e {0}
+2026-07-01T09:31:14.1550997Z env:
+2026-07-01T09:31:14.1551415Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-07-01T09:31:14.1552079Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-07-01T09:31:14.1552671Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.27.4-x64/flutter
+2026-07-01T09:31:14.1553135Z   PUB_CACHE: /home/runner/.pub-cache
+2026-07-01T09:31:14.1553457Z ##[endgroup]
+2026-07-01T09:31:14.5515841Z 
+2026-07-01T09:32:44.5672097Z Running Gradle task 'assembleRelease'...                        
+2026-07-01T09:32:44.5680989Z lib/screens/camera_screen.dart:14:17: Error: Method not found: 'max'.
+2026-07-01T09:32:44.5683791Z   final xLeft = max(a.left, b.left);
+2026-07-01T09:32:44.5684547Z                 ^^^
+2026-07-01T09:32:44.5685713Z lib/screens/camera_screen.dart:15:16: Error: Method not found: 'max'.
+2026-07-01T09:32:44.5693007Z   final yTop = max(a.top, b.top);
+2026-07-01T09:32:44.5693690Z                ^^^
+2026-07-01T09:32:44.5694267Z lib/screens/camera_screen.dart:16:18: Error: Method not found: 'min'.
+2026-07-01T09:32:44.5694753Z   final xRight = min(a.right, b.right);
+2026-07-01T09:32:44.5695093Z                  ^^^
+2026-07-01T09:32:44.5695471Z lib/screens/camera_screen.dart:17:19: Error: Method not found: 'min'.
+2026-07-01T09:32:44.5695943Z   final yBottom = min(a.bottom, b.bottom);
+2026-07-01T09:32:44.5696265Z                   ^^^
+2026-07-01T09:32:48.1532205Z Target kernel_snapshot_program failed: Exception
+2026-07-01T09:32:48.1541792Z 
+2026-07-01T09:32:48.1574548Z 
+2026-07-01T09:32:48.1577723Z FAILURE: Build failed with an exception.
+2026-07-01T09:32:48.1611497Z 
+2026-07-01T09:32:48.1636387Z * What went wrong:
+2026-07-01T09:32:48.1647153Z Execution failed for task ':app:compileFlutterBuildRelease'.
+2026-07-01T09:32:48.1648280Z > Process 'command '/opt/hostedtoolcache/flutter/stable-3.27.4-x64/flutter/bin/flutter'' finished with non-zero exit value 1
+2026-07-01T09:32:48.1649004Z 
+2026-07-01T09:32:48.1649215Z * Try:
+2026-07-01T09:32:48.1649791Z > Run with --stacktrace option to get the stack trace.
+2026-07-01T09:32:48.1650373Z > Run with --info or --debug option to get more log output.
+2026-07-01T09:32:48.1651525Z > Run with --scan to get full insights.
+2026-07-01T09:32:48.1652024Z > Get more help at https://help.gradle.org.
+2026-07-01T09:32:48.1652407Z 
+2026-07-01T09:32:48.1652636Z BUILD FAILED in 1m 33s
+2026-07-01T09:32:48.6146974Z Running Gradle task 'assembleRelease'...                           94.0s
+2026-07-01T09:32:48.6178778Z Gradle task assembleRelease failed with exit code 1
+2026-07-01T09:32:48.6234432Z ##[error]Process completed with exit code 1.

@@ -37,47 +37,49 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/QuanScan-v1.0.1.apk
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: QuanScan-APK
-          path: build/app/outputs/flutter-apk/QuanScan-v1.0.1.apk
+          name: MilkTrayScan-APK
+          path: build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.1
-          name: "Quan Scan v1.0.1 - AI Packet Counter"
+          tag_name: v1.0.0
+          name: "🥛 Milk Tray Scan v1.0.0 - AI Packet Counter"
           body: |
-            ## 🥛 Quan Scan v1.0.1
-            
+            ## 🥛 Milk Tray Scan v1.0.0
+
             **AI-Powered Real-Time Milk Packet Counter for Android**
-            
+
             ### ✨ Features
-            - 📸 Real-time camera-based object detection
-            - 🤖 On-device AI (Google ML Kit) — no internet required
-            - 📊 Live bounding box overlays with packet count
-            - 💾 Save counting sessions with photos
-            - 📋 History tracking with total statistics
+            - 📸 Real-time camera-based object detection with milk packet counting
+            - 🤖 On-device AI (Google ML Kit) — no internet required, completely offline
+            - 🟢🟠 Color-coded bounding boxes — standalone packets in green, stacked/overlapped packets in orange
+            - ⧉ Smart overlap detection using IoU (Intersection over Union) analysis
+            - 💾 Capture & save counting sessions with photos stored locally
+            - 📋 History tracking with image thumbnails, overlap breakdown & total statistics
+            - 📊 Home screen stats dashboard with today, weekly & all-time counts
             - 🔄 Front/rear camera switching
             - 🌙 Dark mode support
-            
+
             ### 📲 Installation
-            1. Download `QuanScan-v1.0.1.apk` below
+            1. Download `MilkTrayScan-v1.0.0.apk` below
             2. Enable "Install from unknown sources" on your Android device
             3. Install and open the app
             4. Grant camera permission when prompted
             5. Point camera at milk packets and start counting!
-            
+
             ### 📱 Requirements
             - Android 5.0 (API 21) or higher
             - Camera permission
-            
+
             ---
             *Built with Flutter & Google ML Kit Object Detection*
-          files: build/app/outputs/flutter-apk/QuanScan-v1.0.1.apk
+          files: build/app/outputs/flutter-apk/MilkTrayScan-v1.0.0.apk
           draft: false
           prerelease: false
         env:

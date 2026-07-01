@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/count_record.dart';
@@ -67,14 +68,70 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  void _viewImage(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(8),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(
+                File(imagePath),
+                width: double.infinity,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 250,
+                  color: Colors.black54,
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.broken_image_rounded,
+                            color: Colors.white38, size: 48),
+                        SizedBox(height: 8),
+                        Text('Image not found',
+                            style: TextStyle(color: Colors.white54)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Compute totals
     int totalCount = 0;
+    int totalStandalone = 0;
+    int totalOverlapped = 0;
     if (_records.isNotEmpty) {
-      totalCount = _records.fold(0, (sum, r) => sum + r.count);
+      for (final r in _records) {
+        totalCount += r.count;
+        totalStandalone += r.standaloneCount;
+        totalOverlapped += r.overlappedCount;
+      }
     }
 
     return Scaffold(
@@ -99,7 +156,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Icon(
                         Icons.history_rounded,
                         size: 80,
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        color: colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.4),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -112,7 +170,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Text(
                         'Start counting to see your history here',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                          color: colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -129,39 +188,65 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             horizontal: 24,
                             vertical: 16,
                           ),
-                          child: Row(
+                          child: Column(
                             children: [
-                              Icon(
-                                Icons.assessment_rounded,
-                                color: colorScheme.primary,
-                                size: 32,
-                              ),
-                              const SizedBox(width: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Row(
                                 children: [
-                                  Text(
-                                    'Total Packets Counted',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                  Icon(
+                                    Icons.assessment_rounded,
+                                    color: colorScheme.primary,
+                                    size: 32,
                                   ),
+                                  const SizedBox(width: 16),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Total Packets Counted',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$totalCount',
+                                        style: theme.textTheme.headlineMedium
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
                                   Text(
-                                    '$totalCount',
-                                    style: theme.textTheme.headlineMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.primary,
+                                    '${_records.length} sessions',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
                               ),
-                              const Spacer(),
-                              Text(
-                                '${_records.length} sessions',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
+                              // Overlap breakdown
+                              if (totalOverlapped > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Row(
+                                    children: [
+                                      const SizedBox(width: 48),
+                                      _StatDot(
+                                          color: Colors.green,
+                                          label:
+                                              '$totalStandalone standalone'),
+                                      const SizedBox(width: 16),
+                                      _StatDot(
+                                          color: Colors.orange,
+                                          label:
+                                              '$totalOverlapped stacked'),
+                                    ],
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -178,37 +263,91 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             final record = _records[index];
                             final timeStr = DateFormat('MMM d, yyyy - h:mm a')
                                 .format(record.timestamp);
+                            final hasImage = record.imagePath != null &&
+                                File(record.imagePath!).existsSync();
+
                             return Card(
                               margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                leading: CircleAvatar(
-                                  backgroundColor:
-                                      colorScheme.primaryContainer,
-                                  child: Text(
-                                    '${record.count}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onPrimaryContainer,
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: hasImage
+                                    ? () => _viewImage(record.imagePath!)
+                                    : null,
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  leading: hasImage
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: SizedBox(
+                                            width: 56,
+                                            height: 56,
+                                            child: Image.file(
+                                              File(record.imagePath!),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  _buildLeadingAvatar(
+                                                      record, colorScheme),
+                                            ),
+                                          ),
+                                        )
+                                      : _buildLeadingAvatar(
+                                          record, colorScheme),
+                                  title: Row(
+                                    children: [
+                                      Text(
+                                        '${record.count} Packets',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (record.overlappedCount > 0)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 8),
+                                          child: Container(
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${record.standaloneCount}S · ${record.overlappedCount}⧉',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.orangeAccent,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 2),
+                                      Text(timeStr,
+                                          style: const TextStyle(fontSize: 13)),
+                                    ],
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: colorScheme.error,
                                     ),
+                                    onPressed: () =>
+                                        _deleteRecord(record.id),
                                   ),
-                                ),
-                                title: Text(
-                                  '${record.count} Packets',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(timeStr),
-                                trailing: IconButton(
-                                  icon: Icon(
-                                    Icons.delete_outline_rounded,
-                                    color: colorScheme.error,
-                                  ),
-                                  onPressed: () => _deleteRecord(record.id),
                                 ),
                               ),
                             );
@@ -218,6 +357,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildLeadingAvatar(
+      CountRecord record, ColorScheme colorScheme) {
+    return CircleAvatar(
+      backgroundColor: colorScheme.primaryContainer,
+      child: Text(
+        '${record.count}',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatDot extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _StatDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: color.withValues(alpha: 0.8),
+          ),
+        ),
+      ],
     );
   }
 }

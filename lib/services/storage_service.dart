@@ -5,6 +5,10 @@ import '../models/count_record.dart';
 class StorageService {
   static const String _key = 'count_records';
 
+  static final StorageService _instance = StorageService._internal();
+  factory StorageService() => _instance;
+  StorageService._internal();
+
   Future<List<CountRecord>> getRecords() async {
     final prefs = await SharedPreferences.getInstance();
     final String? data = prefs.getString(_key);

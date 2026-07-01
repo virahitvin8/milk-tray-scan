@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/count_record.dart';
 import '../services/storage_service.dart';
-
+import 'dart:math';
 /// Calculates Intersection over Union between two rects.
 double _calculateIoU(Rect a, Rect b) {
   final xLeft = max(a.left, b.left);
