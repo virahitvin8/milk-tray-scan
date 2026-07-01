@@ -554,21 +554,44 @@ class DetectionPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (objects.isEmpty || imageSize == Size.zero) return;
 
-    final boxPaint = Paint()
-      ..color = Colors.greenAccent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
+    final overlappingIndices = <int>{};
+    for (int i = 0; i < objects.length; i++) {
+      for (int j = i + 1; j < objects.length; j++) {
+        final rect1 = objects[i].boundingBox;
+        final rect2 = objects[j].boundingBox;
+        final intersection = rect1.intersect(rect2);
+        if (intersection.width > 0 && intersection.height > 0) {
+          final intersectArea = intersection.width * intersection.height;
+          final area1 = rect1.width * rect1.height;
+          final area2 = rect2.width * rect2.height;
+          if (intersectArea > area1 * 0.2 || intersectArea > area2 * 0.2) {
+            overlappingIndices.add(i);
+            overlappingIndices.add(j);
+          }
+        }
+      }
+    }
 
-    final fillPaint = Paint()
-      ..color = Colors.greenAccent.withValues(alpha: 0.15)
-      ..style = PaintingStyle.fill;
+    for (int i = 0; i < objects.length; i++) {
+      final object = objects[i];
+      final isOverlaid = overlappingIndices.contains(i);
+      
+      final baseColor = isOverlaid ? Colors.purpleAccent : Colors.greenAccent;
+      
+      final boxPaint = Paint()
+        ..color = baseColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round;
 
-    final labelBgPaint = Paint()
-      ..color = Colors.greenAccent.withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
+      final fillPaint = Paint()
+        ..color = baseColor.withValues(alpha: 0.15)
+        ..style = PaintingStyle.fill;
 
-    for (final object in objects) {
+      final labelBgPaint = Paint()
+        ..color = baseColor.withValues(alpha: 0.85)
+        ..style = PaintingStyle.fill;
+
       final Rect rect = object.boundingBox;
       final Rect transformedRect = _transformRect(rect);
 
@@ -577,11 +600,22 @@ class DetectionPainter extends CustomPainter {
 
       // Draw bounding box
       canvas.drawRect(transformedRect, boxPaint);
-
+      
+      // Draw a small square upon the milk packet (center marker)
+      final centerPaint = Paint()
+        ..color = baseColor
+        ..style = PaintingStyle.fill;
+      final centerRect = Rect.fromCenter(
+        center: transformedRect.center, 
+        width: 16, 
+        height: 16
+      );
+      canvas.drawRect(centerRect, centerPaint);
+      
       // Draw corner markers
       final cornerLen = 12.0;
       final cornerPaint = Paint()
-        ..color = Colors.greenAccent
+        ..color = baseColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3.5;
 
@@ -635,9 +669,9 @@ class DetectionPainter extends CustomPainter {
       if (label != null) {
         final textPainter = TextPainter(
           text: TextSpan(
-            text: label,
+            text: isOverlaid ? '$label (Overlaid)' : label,
             style: const TextStyle(
-              color: Colors.black87,
+              color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
