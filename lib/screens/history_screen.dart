@@ -78,23 +78,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.file(
-                File(imagePath),
+              child: SizedBox(
                 width: double.infinity,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 250,
-                  color: Colors.black54,
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.broken_image_rounded,
-                            color: Colors.white38, size: 48),
-                        SizedBox(height: 8),
-                        Text('Image not found',
-                            style: TextStyle(color: Colors.white54)),
-                      ],
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: 4.0,
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.broken_image_rounded,
+                                color: Colors.white38, size: 48),
+                            SizedBox(height: 8),
+                            Text('Image not found',
+                                style: TextStyle(color: Colors.white54)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
